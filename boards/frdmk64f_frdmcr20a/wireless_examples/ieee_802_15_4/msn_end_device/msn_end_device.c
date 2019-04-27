@@ -221,6 +221,23 @@ static osaEventId_t   mAppEvent;
 /* The current state of the applications state machine */
 uint8_t gState;
 
+volatile uint32_t g_systickCounter;
+
+void SysTick_Handler(void)
+{
+    if (g_systickCounter != 0U)
+    { 
+        g_systickCounter--;
+    }
+}
+
+void SysTick_DelayTicks(uint32_t n)
+{
+    g_systickCounter = n;
+    while(g_systickCounter != 0U)
+    {
+    }
+}
 /************************************************************************************
 *************************************************************************************
 * Public functions
@@ -574,6 +591,10 @@ void AppThread(uint32_t argument)
             {
                 Serial_Print( mInterfaceId,"marj>> Sending Information", gAllowToBlock_d );
                 Serial_Print( mInterfaceId,".\n\r", gAllowToBlock_d );
+                SysTick_DelayTicks(4000U);
+                Serial_Print( mInterfaceId,"shaiduck -> wait", gAllowToBlock_d );
+                Serial_Print( mInterfaceId,".\n\r", gAllowToBlock_d );
+                
                 App_SendInformation();
             }
         }
@@ -927,32 +948,18 @@ static void App_HandleMessage( mcpsToNwkMessage_t *pMsgIn )
 {
     uint8_t val = *(pMsgIn->msgData.dataInd.pMsdu);
     if( ( pMsgIn->msgData.dataInd.msduLength == 1 ) &&
-        ( val <= 1 ))
+        ( val <= mDefaultValueOfMaxDisplayVal_c ))
     {
-        //App_UpdateLEDs(val);
+        App_UpdateLEDs(val);
     }
     else
     {
-         uint8_t Message1 = pMsgIn->msgData.dataInd.pMsdu[1];
-         uint8_t Message2 = pMsgIn->msgData.dataInd.pMsdu[2];
-         uint8_t Message3 = pMsgIn->msgData.dataInd.pMsdu[3];
-         uint8_t Message4 = pMsgIn->msgData.dataInd.pMsdu[4];
-         uint8_t Message5 = pMsgIn->msgData.dataInd.pMsdu[5];
-
-
-         uint16_t Message = (Message1 << 8) | (Message2);
-         uint16_t Message_2 = (Message3 << 8) | (Message4);
-
-         uint8_t hex = pMsgIn->msgData.dataInd.mpduLinkQuality;
-         Serial_Print(mInterfaceId,"\n\rPAN Coordinator(0x", gAllowToBlock_d);
-         Serial_PrintHex(mInterfaceId,&hex,1,0);
-         Serial_Print(mInterfaceId,"):", gAllowToBlock_d);
-         Serial_Print(mInterfaceId,"\n\rPassword:", gAllowToBlock_d);
-         Serial_PrintHex(mInterfaceId,(uint8_t*)&Message, 2, 0);
-         Serial_Print(mInterfaceId,"\n\rMessage:", gAllowToBlock_d);
-         Serial_PrintHex(mInterfaceId,(uint8_t*)&Message_2, 2, 0);
-         Serial_Print(mInterfaceId,"\n\r", gAllowToBlock_d);
-
+        uint8_t hex = pMsgIn->msgData.dataInd.mpduLinkQuality;
+        Serial_Print(mInterfaceId,"\n\rPAN Coordinator(0x", gAllowToBlock_d);
+        Serial_PrintHex(mInterfaceId,&hex,1,0);
+        Serial_Print(mInterfaceId,"):", gAllowToBlock_d);
+        Serial_SyncWrite(mInterfaceId,pMsgIn->msgData.dataInd.pMsdu, pMsgIn->msgData.dataInd.msduLength);
+        Serial_Print(mInterfaceId,"\n\r", gAllowToBlock_d);
     }
 }
 
@@ -1194,11 +1201,11 @@ static void App_SendInformation( void )
         // Signal to Coordinator that a sensor message follows
         mpPacket->msgData.dataReq.pMsdu[0] = 0xFF;
         // Put Satellite Information into the data packet
-        mpPacket->msgData.dataReq.pMsdu[1] = 0x02; /* marj: Satellite ID */
-        mpPacket->msgData.dataReq.pMsdu[2] = 0x78; /* Satellite Password 2 */
-        mpPacket->msgData.dataReq.pMsdu[3] = 0x56; /* Satellite Password 1 */
-        mpPacket->msgData.dataReq.pMsdu[4] = 0xCA; /* Message 2 */
-        mpPacket->msgData.dataReq.pMsdu[5] = 0xC0; /* Message 1 */
+        mpPacket->msgData.dataReq.pMsdu[1] = 0x01; /* marj: Satellite ID */
+        mpPacket->msgData.dataReq.pMsdu[2] = 0x34; /* Satellite Password 2 */
+        mpPacket->msgData.dataReq.pMsdu[3] = 0x12; /* Satellite Password 1 */
+        mpPacket->msgData.dataReq.pMsdu[4] = 0xBA; /* Message 2 */
+        mpPacket->msgData.dataReq.pMsdu[5] = 0xBA; /* Message 1 */
         /* Request MAC level acknowledgment of the data packet */
         mpPacket->msgData.dataReq.txOptions = gMacTxOptionsAck_c;
         /* Give the data packet a handle. The handle is
